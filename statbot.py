@@ -12,7 +12,7 @@ class BotHandler(logging.Handler):
         self.bot_obj = bot
     def emit(self, record):
         msg = self.format(record)
-        bot.send_message(OWNER_ID, msg)
+        bot.send_message(OWNER_ID, msg, parse_mode='Markdown')
 
 
 bot = telebot.TeleBot(TOKEN)
@@ -48,7 +48,7 @@ def on_user_joins(msg):
     new_user = msg.new_chat_member
     if statdb.new_tlgr_user(new_user.id, new_user.username, new_user.first_name, new_user.last_name):
         logger.info('New user added(join)')
-        bot.send_message(msg.chat.id, GREETING_TEXT % new_user.first_name, disable_web_page_preview=True, parse_mode="Markdown")
+        bot.send_message(msg.chat.id, GREETING_TEXT % new_user.first_name, disable_web_page_preview=True, parse_mode='Markdown')
 
 
 @bot.message_handler()
@@ -58,7 +58,8 @@ def on_bs_fwd(msg):
         logger.info('New user added(msg)')
     if msg.forward_from and msg.forward_from.id == BS_BOT_ID:
         logger.info('Got forward in') #%s', msg.chat)
-        bs_fwd_parser(msg)
+        result = bs_fwd_parser(msg)
+        if result: bot.send_message(msg.chat.id, result,  parse_mode='Markdown')
 
 
 def logger_init():
