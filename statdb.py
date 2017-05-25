@@ -1,6 +1,7 @@
 from config import *
 import sqlite3
 import logging
+from time import strftime, gmtime
 
 
 logger = logging.getLogger('BSstatbot')
@@ -9,15 +10,16 @@ logger = logging.getLogger('BSstatbot')
 def new_tlgr_user(user_id, user_name, first_name, last_name):
     try:
         with sqlite3.connect(SQLITE_DB_FILE) as conn:
+            logger.debug(
+                "INSERT or IGNORE into TlgrUser (UserID, UserName, FirstName, LastName) VALUES(%d,'%s','%s','%s')",
+                user_id, user_name, first_name, last_name)
             curs = conn.execute('INSERT or IGNORE into TlgrUser (UserID, UserName, FirstName, LastName) VALUES(?,?,?,?)',
                          (user_id, user_name, first_name, last_name))
-            logger.debug('INSERT or IGNORE into TlgrUser (UserID, UserName, FirstName, LastName) VALUES(%d,%s,%s,%s)',
-                         user_id, user_name, first_name, last_name)
             if curs.rowcount == 0:
+                logger.debug("UPDATE TlgrUser SET UserName='%s', FirstName='%s', LastName='%s' WHERE UserID=%d",
+                             user_name, first_name, last_name, user_id)
                 conn.execute('UPDATE TlgrUser SET UserName=?, FirstName=?, LastName=? WHERE UserID=?',
                              (user_name, first_name, last_name, user_id))
-                logger.debug('UPDATE TlgrUser SET UserName=%s, FirstName=%s, LastName=%s WHERE UserID=%d',
-                             user_name, first_name, last_name, user_id)
                 logger.debug('User updated')
                 return False
             else:
@@ -31,10 +33,9 @@ def new_tlgr_user(user_id, user_name, first_name, last_name):
 def new_game_user(user_name, tlgr_id=None):
     try:
         with sqlite3.connect(SQLITE_DB_FILE) as conn:
-            curs = conn.execute('INSERT or IGNORE into GameUser (UserName, TlgrID) VALUES(?,?)',
-                         (user_name, tlgr_id))
-            logger.debug('INSERT or IGNORE into GameUser (UserName, TlgrID) VALUES(%s,%d)',
+            logger.debug("INSERT or IGNORE into GameUser (UserName, TlgrID) VALUES('%s',%d)",
                          user_name, tlgr_id if tlgr_id else -1)
+            curs = conn.execute('INSERT or IGNORE into GameUser (UserName, TlgrID) VALUES(?,?)', (user_name, tlgr_id))
             if curs.rowcount == 1:
                 logger.info('Game user `%s` added', user_name)
                 return True
@@ -49,19 +50,28 @@ def new_game_user(user_name, tlgr_id=None):
 def update_user_land(user_name, land_name):
     try:
         with sqlite3.connect(SQLITE_DB_FILE) as conn:
-            conn.execute('UPDATE GameUser SET LandName=? WHERE UserName=?',
-                         (land_name, user_name))
-            logger.debug('UPDATE GameUser SET LandName=%s WHERE UserName=%s',
-                         land_name, user_name)
+            logger.debug("UPDATE GameUser SET LandName='%s' WHERE UserName='%s'", land_name, user_name)
+            conn.execute('UPDATE GameUser SET LandName=? WHERE UserName=?', (land_name, user_name))
             return True
     except sqlite3.IntegrityError:
-        logger.warning('Ошибка обновления записи GameUser')
+        logger.warning('Ошибка обновления записи GameUser: `%s` из `%s`', user_name, land_name)
         return False
 
 
 def new_battle(msg, user_name1, user_name2, win_flag, send_army, return_army, money, land, land_name2, karma):
     try:
         with sqlite3.connect(SQLITE_DB_FILE) as conn:
+            logger.debug("INSERT or IGNORE into Battles "
+                         "(ChatID, ForwarderID, FrwMessageTime, User1ID, User2ID, BattleTime, WinFlag, SendArmy, ReturnArmy, Money, Land, Karma) "
+                         "VALUES(%d,%d,%d,"
+                         "(SELECT ID FROM GameUser WHERE UserName = '%s'),"
+                         "(SELECT ID FROM GameUser WHERE UserName = '%s'),"
+                         "%d,%d,%d,%d,%d,%d,%d)",
+                         msg.chat.id, msg.from_user.id, msg.date,
+                         user_name1, user_name2,
+                         msg.forward_date, 1 if win_flag else 2, int(send_army),
+                         int(return_army) if return_army else 0, int(money) if money else 0,
+                         int(land) if land else 0, int(karma) if karma else -99)
             curs = conn.execute('''INSERT or IGNORE into Battles
             (ChatID, ForwarderID, FrwMessageTime, User1ID, User2ID, BattleTime, WinFlag, SendArmy, ReturnArmy, Money, Land, Karma)
             VALUES(?,?,?,
@@ -73,25 +83,16 @@ def new_battle(msg, user_name1, user_name2, win_flag, send_army, return_army, mo
                           msg.forward_date, 1 if win_flag else 2, int(send_army),
                           int(return_army) if return_army else 0, int(money) if money else 0,
                           int(land) if land else None, int(karma) if karma else None))
-            logger.debug("INSERT or IGNORE into Battles\
-(ChatID, ForwarderID, FrwMessageTime, User1ID, User2ID, BattleTime, WinFlag, SendArmy, ReturnArmy, Money, Land, Karma)\
-VALUES(%d,%d,%d,\
-(SELECT ID FROM GameUser WHERE UserName = '%s'),\
-(SELECT ID FROM GameUser WHERE UserName = '%s'),\
-%d,%d,%d,%d,%d,%d,%d)",
-                         msg.chat.id, msg.from_user.id, msg.date,
-                         user_name1, user_name2,
-                         msg.forward_date, 1 if win_flag else 2, int(send_army),
-                         int(return_army) if return_army else 0, int(money) if money else 0,
-                         int(land) if land else 0, int(karma) if karma else -99)
             if curs.rowcount == 1:
-                logger.info('New battle added')
+                str_fwd_time = strftime('%d.%m %H:%M:%S', gmtime(msg.forward_date))
+                logger.info('New battle:%s `%s` VS `%s` (@`%s`)', str_fwd_time, user_name1, user_name2, msg.from_user.username)
                 return True
             else:
                 logger.debug('Battle info already exist')
                 return False
     except sqlite3.IntegrityError:
-        logger.warning('Ошибка добавления записи Battle')
+        str_fwd_time = strftime('%d.%m %H:%M:%S', gmtime(msg.forward_date))
+        logger.warning('Ошибка добавления записи Battle: %s `%s` VS `%s` (@`%s`)', str_fwd_time, user_name1, user_name2, msg.from_user.username)
         return False
 
 
