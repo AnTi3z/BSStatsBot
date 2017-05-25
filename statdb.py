@@ -96,5 +96,20 @@ VALUES(%d,%d,%d,\
 
 
 def get_user_battle_stat(user):
-    pass
+    try:
+        with sqlite3.connect(SQLITE_DB_FILE) as conn:
+            conn.row_factory = sqlite3.Row
+            logger.debug("SELECT Battles.*,GU1.UserName AS UserName1, GU2.UserName AS UserName2 "
+                         "FROM (Battles JOIN GameUser AS GU1 ON User1ID = GU1.ID) JOIN GameUser as GU2 ON User2ID = GU2.ID "
+                         "WHERE UserName1='%s' OR UserName2='%s' "
+                         "ORDER BY BattleTime DESC LIMIT 6", user, user)
+            curs = conn.cursor()
+            curs.execute('''SELECT Battles.*,GU1.UserName AS UserName1, GU2.UserName AS UserName2
+            FROM (Battles JOIN GameUser AS GU1 ON User1ID = GU1.ID) JOIN GameUser as GU2 ON User2ID = GU2.ID
+            WHERE UserName1=? OR UserName2=?
+            ORDER BY BattleTime DESC LIMIT 5''', (user, user))
+            return curs.fetchall()
+    except sqlite3.Error:
+        logger.warning('Database error')
+        return None
 
