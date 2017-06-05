@@ -3,6 +3,7 @@ from bsmsgparser import *
 import telebot
 import logging
 import statdb
+from out_fmts import global_stat_fmt, whois_info_fmt
 
 logger = logging.getLogger('BSstatbot')
 
@@ -18,14 +19,14 @@ class BotHandler(logging.Handler):
 bot = telebot.TeleBot(TOKEN)
 me = bot.get_me()
 
-#@bot.message_handler(commands=['leave'])
-#def leave_group(msg):
+# @bot.message_handler(commands=['leave'])
+# def leave_group(msg):
 #    bot.leave_chat(msg.chat.id)
 
 
 @bot.message_handler(commands=['id'], func=lambda msg: msg.from_user.id == OWNER_ID)
 def say_id(msg):
-    bot.reply_to(msg,msg.chat.id)
+    bot.reply_to(msg, msg.chat.id)
 
 
 @bot.message_handler(commands=['связать'], func=lambda msg: msg.from_user.id == OWNER_ID)
@@ -35,12 +36,23 @@ def link_user(msg):
 
 @bot.message_handler(commands=['кто'])
 def who_user(msg):
-    pass
+    acc_lvl = get_acc_lvl(msg.chat.id)
+    _, *args = msg.text.split()
+    db_result = statdb.get_whois_info(' '.join(args), acc_lvl)
+    if db_result:
+        text = whois_info_fmt(db_result)
+    if text:
+        bot.send_message(msg.chat.id, text, parse_mode='Markdown')
 
 
 @bot.message_handler(commands=['стат'])
 def stat_user(msg):
-    pass
+    acc_lvl = get_acc_lvl(msg.chat.id)
+    _, *args = msg.text.split()
+    db_result = statdb.get_user_global_stat(' '.join(args), acc_lvl)
+    text = global_stat_fmt(db_result)
+    if text:
+        bot.send_message(msg.chat.id, text, parse_mode='Markdown')
 
 
 @bot.message_handler(func=lambda msg: msg.chat.id == SUPPORT_CHAT_ID, content_types=['new_chat_member'])
@@ -63,7 +75,7 @@ def on_bs_fwd(msg):
 
 
 def logger_init():
-    #Console logging
+    # Console logging
     console_formatter = logging.Formatter(
         '%(asctime)s (%(filename)s:%(lineno)d %(funcName)s) %(levelname)s - %(name)s: "%(message)s"'
     )
@@ -72,7 +84,7 @@ def logger_init():
     console_output_handler.setLevel(logging.DEBUG)
     logger.addHandler(console_output_handler)
 
-    #Logging via telegram
+    # Logging via telegram
     bot_formatter = logging.Formatter('%(message)s')
     bot_output_handler = BotHandler(bot)
     bot_output_handler.setFormatter(bot_formatter)
@@ -80,7 +92,7 @@ def logger_init():
     logger.addHandler(bot_output_handler)
 
     logger.setLevel(logging.DEBUG)
-    #telebot.logger.setLevel(logging.DEBUG)
+    # telebot.logger.setLevel(logging.DEBUG)
 
 
 if __name__ == '__main__':
