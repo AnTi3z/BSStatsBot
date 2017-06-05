@@ -10,3 +10,6 @@ def str_human_int (x):
     elif abs(round(x)) >= 10: return '{:.1f}{}'.format(x,suffix)
     else: return '{:.2f}{}'.format(x,suffix)
 
+
+def get_acc_lvl(chat_id):
+    return 10
