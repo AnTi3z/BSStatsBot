@@ -4,6 +4,7 @@ import telebot
 import logging
 import statdb
 from out_fmts import global_stat_fmt, whois_info_fmt
+from tools import get_acc_lvl
 
 logger = logging.getLogger('BSstatbot')
 
@@ -69,9 +70,10 @@ def on_bs_fwd(msg):
     if statdb.new_tlgr_user(new_user.id, new_user.username, new_user.first_name, new_user.last_name):
         logger.info('New user added(msg)')
     if msg.forward_from and msg.forward_from.id == BS_BOT_ID:
-        logger.info('Got forward in') #%s', msg.chat)
+        logger.info('Got forward in')  # %s', msg.chat)
         result = bs_fwd_parser(msg)
-        if result: bot.send_message(msg.chat.id, result,  parse_mode='Markdown')
+        if result and 1:  # TODO: проверка уровня доступа!!
+            bot.send_message(msg.chat.id, result,  parse_mode='Markdown')
 
 
 def logger_init():

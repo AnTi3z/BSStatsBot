@@ -2,6 +2,7 @@ import re
 import statdb
 import logging
 from out_fmts import battle_stat_fmt
+from tools import get_acc_lvl
 
 logger = logging.getLogger('BSstatbot')
 
@@ -14,7 +15,8 @@ def bs_fwd_parser(msg):
     if trg:
         statdb.new_game_user(trg.group(1))
         statdb.update_user_land(trg.group(1), trg.group(2))
-        result = statdb.get_user_battle_stat(trg.group(1))
+        acc_lvl = get_acc_lvl(msg.chat.id)
+        result = statdb.get_user_battle_stat(trg.group(1), acc_lvl)
         if result:
             return battle_stat_fmt(result)
         else:

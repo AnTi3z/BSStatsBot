@@ -10,3 +10,11 @@ def str_human_int (x):
     elif abs(round(x)) >= 10: return '{:.1f}{}'.format(x,suffix)
     else: return '{:.2f}{}'.format(x,suffix)
 
+
+def get_acc_lvl(chat_id):
+    IngressersID = -1001096635324
+    JPV_ID = -1001096024584
+    PisyaID = -203826152
+    if chat_id == IngressersID: return 100
+    elif chat_id == JPV_ID  or chat_id == PisyaID: return 10
+    return 0
