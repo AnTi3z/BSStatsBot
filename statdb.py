@@ -62,7 +62,8 @@ def new_battle(msg, user_name1, user_name2, win_flag, send_army, return_army, mo
     try:
         with sqlite3.connect(SQLITE_DB_FILE) as conn:
             logger.debug("INSERT or IGNORE into Battles "
-                         "(ChatID, ForwarderID, FrwMessageTime, User1ID, User2ID, BattleTime, WinFlag, SendArmy, ReturnArmy, Money, Land, Karma) "
+                         "(ChatID, ForwarderID, FrwMessageTime, "
+                         "User1ID, User2ID, BattleTime, WinFlag, SendArmy, ReturnArmy, Money, Land, Karma) "
                          "VALUES(%d,%d,%d,"
                          "(SELECT ID FROM GameUser WHERE UserName = '%s'),"
                          "(SELECT ID FROM GameUser WHERE UserName = '%s'),"
@@ -96,12 +97,14 @@ def new_battle(msg, user_name1, user_name2, win_flag, send_army, return_army, mo
         return False
 
 
-def get_user_battle_stat(user):
+def get_user_battle_stat(user, acc_lvl=0):
+    if acc_lvl <= 0: return None
     try:
         with sqlite3.connect(SQLITE_DB_FILE) as conn:
             conn.row_factory = sqlite3.Row
             logger.debug("SELECT Battles.*,GU1.UserName AS UserName1, GU2.UserName AS UserName2 "
-                         "FROM (Battles JOIN GameUser AS GU1 ON User1ID = GU1.ID) JOIN GameUser as GU2 ON User2ID = GU2.ID "
+                         "FROM (Battles JOIN GameUser AS GU1 ON User1ID = GU1.ID) "
+                         "JOIN GameUser as GU2 ON User2ID = GU2.ID "
                          "WHERE UserName1='%s' OR UserName2='%s' "
                          "ORDER BY BattleTime DESC LIMIT 6", user, user)
             curs = conn.cursor()
@@ -109,6 +112,87 @@ def get_user_battle_stat(user):
             FROM (Battles JOIN GameUser AS GU1 ON User1ID = GU1.ID) JOIN GameUser as GU2 ON User2ID = GU2.ID
             WHERE UserName1=? OR UserName2=?
             ORDER BY BattleTime DESC LIMIT 5''', (user, user))
+            return curs.fetchall()
+    except sqlite3.Error:
+        logger.warning('Database error')
+        return None
+
+
+def get_user_global_stat(user, acc_lvl=0):
+    if acc_lvl <= 0: return None
+    try:
+        with sqlite3.connect(SQLITE_DB_FILE) as conn:
+            conn.row_factory = sqlite3.Row
+            logger.debug("SELECT UserName, LandName, COUNT(*) As Total, SUM(WinFlag) As Wins, "
+                         "SUM(case when WinFlag = 0 then 1 else 0 end) As Losts, "
+                         "SUM(SendArmy) As SendArm, SUM(SendArmy-ReturnArmy) As LostArm, "
+                         "SUM(SendArmy)*2 As SendArmCost, SUM(SendArmy-ReturnArmy)*12 As LostArmCost, "
+                         "(SUM(SendArmy)*2 + SUM(SendArmy-ReturnArmy)*12) As TotalArmCost, "
+                         "SUM(case when WinFlag = 1 then Money else 0 end) As WinMoney, "
+                         "SUM(case when WinFlag = 0 then Money else 0 end) As LostMoney, "
+                         "SUM(case when WinFlag = 1 then Money else -1 * Money end) As TotalMoney, "
+                         "SUM(case when WinFlag = 1 then Land else 0 end) As WinLand, "
+                         "SUM(case when WinFlag = 0 then Land else 0 end) As LostLand, "
+                         "SUM(case when WinFlag = 1 then Land else -1 * Land end) As TotalLand, "
+                         "(SUM(case when WinFlag = 1 then Money else -1 * Money end) - "
+                         "SUM(SendArmy)*2 - SUM(SendArmy-ReturnArmy)*12) As TotalProfit "
+                         "FROM Battles JOIN GameUser ON GameUser.ID=Battles.User1ID WHERE UserName='%s'", user)
+            curs = conn.cursor()
+            curs.execute('''SELECT UserName, LandName, COUNT(*) As Total, SUM(WinFlag) As Wins, 
+            SUM(case when WinFlag = 0 then 1 else 0 end) As Losts, 
+            SUM(SendArmy) As SendArm, SUM(SendArmy-ReturnArmy) As LostArm, 
+            SUM(SendArmy)*2 As SendArmCost, SUM(SendArmy-ReturnArmy)*12 As LostArmCost, 
+            (SUM(SendArmy)*2 + SUM(SendArmy-ReturnArmy)*12) As TotalArmCost, 
+            SUM(case when WinFlag = 1 then Money else 0 end) As WinMoney, 
+            SUM(case when WinFlag = 0 then Money else 0 end) As LostMoney, 
+            SUM(case when WinFlag = 1 then Money else -1 * Money end) As TotalMoney, 
+            SUM(case when WinFlag = 1 then Land else 0 end) As WinLand, 
+            SUM(case when WinFlag = 0 then Land else 0 end) As LostLand, 
+            SUM(case when WinFlag = 1 then Land else -1 * Land end) As TotalLand, 
+            (SUM(case when WinFlag = 1 then Money else -1 * Money end) - 
+            SUM(SendArmy)*2 - SUM(SendArmy-ReturnArmy)*12) As TotalProfit
+            FROM Battles JOIN GameUser ON GameUser.ID=Battles.User1ID WHERE UserName=?''', (user,))
+            return curs.fetchone()
+    except sqlite3.Error:
+        logger.warning('Database error')
+        return None
+
+
+def get_whois_info(search_arg, acc_lvl=0):
+    if acc_lvl <= 0: return None
+    srch_mask = '%' + search_arg + '%'
+    if search_arg[0] == '@': tlgr_user_mask = search_arg[1:] + '%'
+    else: tlgr_user_mask = srch_mask
+    try:
+        with sqlite3.connect(SQLITE_DB_FILE) as conn:
+            conn.row_factory = sqlite3.Row
+            logger.debug("SELECT * FROM "
+                         "(SELECT TlgrUser.UserID AS TlgrUserID, GameUser.ID AS PlayerID, "
+                         "GameUser.UserName AS PlayerName, LandName, TlgrUser.UserName AS TlgUsername, "
+                         "FirstName, LastName "
+                         "FROM TlgrUser LEFT JOIN GameUser ON GameUser.TlgrID=TlgrUser.UserID "
+                         "UNION "
+                         "SELECT TlgrUser.UserID AS TlgrUserID, GameUser.ID AS PlayerID, "
+                         "GameUser.UserName AS PlayerName, LandName, TlgrUser.UserName AS TlgUsername, "
+                         "FirstName, LastName "
+                         "FROM GameUser LEFT JOIN TlgrUser ON GameUser.TlgrID=TlgrUser.UserID "
+                         "WHERE GameUser.TlgrID IS NULL) "
+                         "WHERE PlayerName LIKE '%s' OR LandName LIKE '%s' "
+                         "OR FirstName LIKE '%s' OR LastName LIKE '%s' "
+                         "OR TlgUsername LIKE '%s'", srch_mask, srch_mask, srch_mask, srch_mask, tlgr_user_mask)
+            curs = conn.cursor()
+            curs.execute('''SELECT * FROM
+            (SELECT TlgrUser.UserID AS TlgrUserID, GameUser.ID AS PlayerID,
+            GameUser.UserName AS PlayerName, LandName, TlgrUser.UserName AS TlgUsername, FirstName, LastName
+            FROM TlgrUser LEFT JOIN GameUser ON GameUser.TlgrID=TlgrUser.UserID
+            UNION
+            SELECT TlgrUser.UserID AS TlgrUserID, GameUser.ID AS PlayerID,
+            GameUser.UserName AS PlayerName, LandName, TlgrUser.UserName AS TlgUsername, FirstName, LastName
+            FROM GameUser LEFT JOIN TlgrUser ON GameUser.TlgrID=TlgrUser.UserID
+            WHERE GameUser.TlgrID IS NULL)
+            WHERE PlayerName LIKE ? OR LandName LIKE ?
+            OR FirstName LIKE ? OR LastName LIKE ?
+            OR TlgUsername LIKE ?''', (srch_mask, srch_mask, srch_mask, srch_mask, tlgr_user_mask))
             return curs.fetchall()
     except sqlite3.Error:
         logger.warning('Database error')
