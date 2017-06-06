@@ -86,7 +86,7 @@ def new_battle(msg, user_name1, user_name2, win_flag, send_army, return_army, mo
                           int(land) if land else None, int(karma) if karma else None))
             if curs.rowcount == 1:
                 str_fwd_time = strftime('%d.%m %H:%M:%S', gmtime(msg.forward_date))
-                logger.info('New battle:%s `%s` VS `%s` (@`%s`)', str_fwd_time, user_name1, user_name2, msg.from_user.username)
+                logger.info('New battle: %s `%s` vs `%s` (@`%s`)', str_fwd_time, user_name1, user_name2, msg.from_user.username)
                 return True
             else:
                 logger.debug('Battle info already exist')
