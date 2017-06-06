@@ -42,8 +42,8 @@ def who_user(msg):
     db_result = statdb.get_whois_info(' '.join(args), acc_lvl)
     if db_result:
         text = whois_info_fmt(db_result)
-    if text:
-        bot.send_message(msg.chat.id, text, parse_mode='Markdown')
+        if text:
+            bot.send_message(msg.chat.id, text, parse_mode='Markdown')
 
 
 @bot.message_handler(commands=['стат'])
@@ -70,10 +70,10 @@ def on_bs_fwd(msg):
     if statdb.new_tlgr_user(new_user.id, new_user.username, new_user.first_name, new_user.last_name):
         logger.info('New user added(msg)')
     if msg.forward_from and msg.forward_from.id == BS_BOT_ID:
-        logger.info('Got forward in')  # %s', msg.chat)
-        result = bs_fwd_parser(msg)
-        if result and 1:  # TODO: проверка уровня доступа!!
-            bot.send_message(msg.chat.id, result,  parse_mode='Markdown')
+        # logger.info('Got forward in')  # %s', msg.chat)
+        text = bs_fwd_parser(msg)
+        if text:
+            bot.send_message(msg.chat.id, text,  parse_mode='Markdown')
 
 
 def logger_init():

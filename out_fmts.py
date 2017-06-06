@@ -39,8 +39,9 @@ def battle_stat_fmt(db_data):
 
 
 def global_stat_fmt(db_data):
-    if db_data and db_data['Total'] > 0:
-        return '''Статистика по игроку `{}` из `{}`
+    if not db_data: return 'Совпадений не найдено'
+
+    return '''Статистика по игроку `{}` из `{}`
 
 Всего сражений: {}
 Побед/поражений: {}👍/ {}👎
@@ -66,11 +67,11 @@ def global_stat_fmt(db_data):
            str_human_int(db_data['TotalMoney']),
            str_human_int(db_data['WinLand']), str_human_int(db_data['LostLand']), str_human_int(db_data['TotalLand']),
            str_human_int(db_data['TotalProfit']))
-    else: return 'Совпадений не найдено'
 
 
 def whois_info_fmt(db_data):
     if not db_data: return 'Совпадений не найдено'
+
     result_list = ['Найдено *{}* совпадений:\n\n'.format(len(db_data))]
     for row in db_data[:5]:
         if row['PlayerID']: player = '`{}` из {}'.format(row['PlayerName'],
@@ -82,4 +83,3 @@ def whois_info_fmt(db_data):
         else: user = '@???'
         result_list.append('{}\n{}\n\n'.format(player, user))
     return ''.join(result_list)
-

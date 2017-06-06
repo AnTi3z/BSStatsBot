@@ -136,7 +136,8 @@ def get_user_global_stat(user, acc_lvl=0):
                          "SUM(case when WinFlag = 1 then Land else -1 * Land end) As TotalLand, "
                          "(SUM(case when WinFlag = 1 then Money else -1 * Money end) - "
                          "SUM(SendArmy)*2 - SUM(SendArmy-ReturnArmy)*12) As TotalProfit "
-                         "FROM Battles JOIN GameUser ON GameUser.ID=Battles.User1ID WHERE UserName='%s'", user)
+                         "FROM Battles JOIN GameUser ON GameUser.ID=Battles.User1ID WHERE UserName='%s'"
+                         "GROUP BY UserName HAVING Total > 0", user)
             curs = conn.cursor()
             curs.execute('''SELECT UserName, LandName, COUNT(*) As Total, SUM(WinFlag) As Wins, 
             SUM(case when WinFlag = 0 then 1 else 0 end) As Losts, 
@@ -151,7 +152,8 @@ def get_user_global_stat(user, acc_lvl=0):
             SUM(case when WinFlag = 1 then Land else -1 * Land end) As TotalLand, 
             (SUM(case when WinFlag = 1 then Money else -1 * Money end) - 
             SUM(SendArmy)*2 - SUM(SendArmy-ReturnArmy)*12) As TotalProfit
-            FROM Battles JOIN GameUser ON GameUser.ID=Battles.User1ID WHERE UserName=?''', (user,))
+            FROM Battles JOIN GameUser ON GameUser.ID=Battles.User1ID WHERE UserName=?
+            GROUP BY UserName HAVING Total > 0''', (user,))
             return curs.fetchone()
     except sqlite3.Error:
         logger.warning('Database error')
