@@ -50,15 +50,79 @@ def new_game_user(user_name, tlgr_id=None):
 def update_user_land(user_name, land_name):
     try:
         with sqlite3.connect(SQLITE_DB_FILE) as conn:
-            logger.debug("UPDATE GameUser SET LandName='%s' WHERE UserName='%s'", land_name, user_name)
-            conn.execute('UPDATE GameUser SET LandName=? WHERE UserName=?', (land_name, user_name))
+            logger.debug("UPDATE GameUser SET LandName = '%s' WHERE UserName = '%s'", land_name, user_name)
+            conn.execute('UPDATE GameUser SET LandName = ? WHERE UserName = ?', (land_name, user_name))
             return True
     except sqlite3.IntegrityError:
         logger.warning('Ошибка обновления записи GameUser: `%s` из `%s`', user_name, land_name)
         return False
 
 
+def new_alliance(emoji_id):
+    try:
+        with sqlite3.connect(SQLITE_DB_FILE) as conn:
+            logger.debug("INSERT or IGNORE into Alliances (EmojiID) VALUES('%s')", emoji_id)
+            curs = conn.execute('INSERT or IGNORE into Alliances (EmojiID) VALUES(?)', (emoji_id,))
+            if curs.rowcount == 1: logger.info('New alliance `%s` added', emoji_id)
+            return True
+    except sqlite3.IntegrityError:
+        logger.warning('Ошибка добавления записи Alliances: [%s]', emoji_id)
+        return False
+
+
+def update_alliance(emoji_id, name, ppl, leader):
+    try:
+        with sqlite3.connect(SQLITE_DB_FILE) as conn:
+            logger.debug("UPDATE Alliances SET Name = '%s', Ppl = %d, "
+                         "Leader = (SELECT ID FROM GameUser WHERE UserName = '%s') WHERE EmojiID = '%s'",
+                         name, int(ppl), leader, emoji_id)
+            conn.execute('''UPDATE Alliances SET Name = ?, Ppl = ?, 
+            Leader = (SELECT ID FROM GameUser WHERE UserName = ?) WHERE EmojiID = ?''',
+                         (name, int(ppl), leader, emoji_id))
+            return True
+    except sqlite3.Error:
+        logger.warning('Ошибка обновления записи Alliances: [%s]', emoji_id)
+        return False
+
+
+def new_user_alliance(user_name, emoji_id):
+    try:
+        with sqlite3.connect(SQLITE_DB_FILE) as conn:
+            logger.debug("INSERT or IGNORE into Allys (GameUserID, AllianceID) VALUES "
+                         "((SELECT ID FROM GameUser WHERE UserName = '%s'), '%s')", user_name, emoji_id)
+            curs = conn.execute('''INSERT or IGNORE into Allys (GameUserID, AllianceID) VALUES
+            ((SELECT ID FROM GameUser WHERE UserName = ?), ?)''', (user_name, emoji_id))
+            if curs.rowcount == 0:
+                logger.debug("UPDATE Allys SET AllianceID = '%s' WHERE "
+                             "UserName = (SELECT ID FROM GameUser WHERE UserName = '%s')", emoji_id, user_name)
+                conn.execute('''UPDATE Allys SET AllianceID = ? WHERE 
+                            GameUserID = (SELECT ID FROM GameUser WHERE UserName = ?)''', (emoji_id, user_name))
+                logger.debug('User %s alliance updated', user_name)
+                return False
+            else:
+                logger.info('New alliance for user %s created', user_name)
+                return True
+    except sqlite3.IntegrityError:
+        logger.warning('Ошибка добавления записи Allys: `%s` из [%s]', user_name, emoji_id)
+        return False
+
+
+def delete_user_alliance(user_name):
+    try:
+        with sqlite3.connect(SQLITE_DB_FILE) as conn:
+            logger.debug("DELETE FROM Allys WHERE "
+                         "UserName = (SELECT ID FROM GameUser WHERE UserName = '%s')", user_name)
+            conn.execute('''DELETE FROM Allys WHERE 
+            GameUserID = (SELECT ID FROM GameUser WHERE UserName = ?)''', (user_name,))
+            return True
+    except sqlite3.Error:
+        logger.warning('Ошибка улаления записи Allys: `%s`', user_name)
+        return False
+    pass
+
+
 def new_battle(msg, user_name1, user_name2, win_flag, send_army, return_army, money, land, land_name2, karma):
+    if not send_army: send_army = return_army
     try:
         with sqlite3.connect(SQLITE_DB_FILE) as conn:
             logger.debug("INSERT or IGNORE into Battles "
