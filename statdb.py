@@ -262,6 +262,35 @@ def get_whois_info(search_arg, acc_lvl=0):
         return None
 
 
+def get_alliance_list():
+    try:
+        with sqlite3.connect(SQLITE_DB_FILE) as conn:
+            conn.row_factory = sqlite3.Row
+            logger.debug("SELECT EmojiID, Name, Ppl, UserName as LeaderName "
+                         "FROM Alliances JOIN GameUser ON Leader=GameUser.ID "
+                         "ORDER BY Ppl DESC")
+            curs = conn.execute('''SELECT EmojiID, Name, Ppl, UserName as LeaderName
+            FROM Alliances JOIN GameUser ON Leader=GameUser.ID
+            ORDER BY Ppl DESC''')
+            return curs.fetchall()
+    except sqlite3.Error:
+        logger.warning('Database error')
+        return None
+
+
+def get_ally_members(emoji_id):
+    try:
+        with sqlite3.connect(SQLITE_DB_FILE) as conn:
+            logger.debug("SELECT UserName FROM GameUser JOIN Allys ON GameUserID = ID WHERE AllianceID = '%s'",
+                         emoji_id)
+            curs = conn.execute('SELECT UserName FROM GameUser JOIN Allys ON GameUserID = ID WHERE AllianceID = ?',
+                                (emoji_id,))
+            return curs.fetchall()
+    except sqlite3.Error:
+        logger.warning('Database error')
+        return None
+
+
 def get_chat_acclvl(chat_id):
     try:
         with sqlite3.connect(SQLITE_DB_FILE) as conn:

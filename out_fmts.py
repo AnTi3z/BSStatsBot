@@ -29,8 +29,8 @@ def battle_stat_fmt(db_data):
         army = '{}/{}⚔'.format(row['ReturnArmy'], row['SendArmy'])
 
         result_list.append('{}\n'
-                           '*{:<12}* `{:>12}`\n'
-                           '{:<12} {:>7} {:>7}\n\n'
+                           '*{:<10}* `{:>10}`\n'
+                           '{:<12} {:>6} {:>6}\n\n'
                            .format(str_fwd_time,
                                    user1, user2,
                                    army, money, land))
@@ -83,3 +83,12 @@ def whois_info_fmt(db_data):
         else: user = '@???'
         result_list.append('{}\n{}\n\n'.format(player, user))
     return ''.join(result_list)
+
+
+def alliance_list_fmt(db_data):
+    result_list = []
+    for row in db_data:
+        result_list.append('`[{}]{:16.16}{}|{:>2}`\n'.format(row['EmojiID'], row['Name'], '~' if len(row['Name']) > 16 else ' ',row['Ppl']))
+
+    return ''.join(result_list) + '\n*Всего {}*'.format(len(result_list))
+

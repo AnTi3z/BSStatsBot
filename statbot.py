@@ -35,6 +35,14 @@ def link_user(msg):
     pass
 
 
+@bot.message_handler(commands=['альянсы'])
+def alliances_list(msg):
+    db_result = statdb.get_alliance_list()
+    text = alliance_list_fmt(db_result)
+    if text:
+        bot.send_message(msg.chat.id, text, parse_mode='Markdown')
+
+
 @bot.message_handler(commands=['кто'])
 def who_user(msg):
     acc_lvl = get_acc_lvl(msg.chat.id)
