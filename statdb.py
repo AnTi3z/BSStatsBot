@@ -70,7 +70,7 @@ def new_battle(msg, user_name1, user_name2, win_flag, send_army, return_army, mo
                          "%d,%d,%d,%d,%d,%d,%d)",
                          msg.chat.id, msg.from_user.id, msg.date,
                          user_name1, user_name2,
-                         msg.forward_date, 1 if win_flag else 2, int(send_army),
+                         msg.forward_date, 1 if win_flag else 0, int(send_army),
                          int(return_army) if return_army else 0, int(money) if money else 0,
                          int(land) if land else 0, int(karma) if karma else -99)
             curs = conn.execute('''INSERT or IGNORE into Battles
@@ -81,7 +81,7 @@ def new_battle(msg, user_name1, user_name2, win_flag, send_army, return_army, mo
             ?,?,?,?,?,?,?)''',
                          (msg.chat.id, msg.from_user.id, msg.date,
                           user_name1, user_name2,
-                          msg.forward_date, 1 if win_flag else 2, int(send_army),
+                          msg.forward_date, 1 if win_flag else 0, int(send_army),
                           int(return_army) if return_army else 0, int(money) if money else 0,
                           int(land) if land else None, int(karma) if karma else None))
             if curs.rowcount == 1:
@@ -107,8 +107,7 @@ def get_user_battle_stat(user, acc_lvl=0):
                          "JOIN GameUser as GU2 ON User2ID = GU2.ID "
                          "WHERE UserName1='%s' OR UserName2='%s' "
                          "ORDER BY BattleTime DESC LIMIT 6", user, user)
-            curs = conn.cursor()
-            curs.execute('''SELECT Battles.*,GU1.UserName AS UserName1, GU2.UserName AS UserName2
+            curs = conn.execute('''SELECT Battles.*,GU1.UserName AS UserName1, GU2.UserName AS UserName2
             FROM (Battles JOIN GameUser AS GU1 ON User1ID = GU1.ID) JOIN GameUser as GU2 ON User2ID = GU2.ID
             WHERE UserName1=? OR UserName2=?
             ORDER BY BattleTime DESC LIMIT 5''', (user, user))
@@ -138,8 +137,7 @@ def get_user_global_stat(user, acc_lvl=0):
                          "SUM(SendArmy)*2 - SUM(SendArmy-ReturnArmy)*12) As TotalProfit "
                          "FROM Battles JOIN GameUser ON GameUser.ID=Battles.User1ID WHERE UserName='%s'"
                          "GROUP BY UserName HAVING Total > 0", user)
-            curs = conn.cursor()
-            curs.execute('''SELECT UserName, LandName, COUNT(*) As Total, SUM(WinFlag) As Wins, 
+            curs = conn.execute('''SELECT UserName, LandName, COUNT(*) As Total, SUM(WinFlag) As Wins, 
             SUM(case when WinFlag = 0 then 1 else 0 end) As Losts, 
             SUM(SendArmy) As SendArm, SUM(SendArmy-ReturnArmy) As LostArm, 
             SUM(SendArmy)*2 As SendArmCost, SUM(SendArmy-ReturnArmy)*12 As LostArmCost, 
@@ -182,8 +180,7 @@ def get_whois_info(search_arg, acc_lvl=0):
                          "WHERE PlayerName LIKE '%s' OR LandName LIKE '%s' "
                          "OR FirstName LIKE '%s' OR LastName LIKE '%s' "
                          "OR TlgUsername LIKE '%s'", srch_mask, srch_mask, srch_mask, srch_mask, tlgr_user_mask)
-            curs = conn.cursor()
-            curs.execute('''SELECT * FROM
+            curs = conn.execute('''SELECT * FROM
             (SELECT TlgrUser.UserID AS TlgrUserID, GameUser.ID AS PlayerID,
             GameUser.UserName AS PlayerName, LandName, TlgrUser.UserName AS TlgUsername, FirstName, LastName
             FROM TlgrUser LEFT JOIN GameUser ON GameUser.TlgrID=TlgrUser.UserID
