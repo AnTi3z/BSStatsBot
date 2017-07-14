@@ -14,10 +14,14 @@ def bs_fwd_parser(msg, acc_lvl):
     # Разведка
     trg = trg_regexp.search(msg.text)
     if trg:
-        statdb.new_game_user(trg.group(1))
-        statdb.update_user_land(trg.group(1), trg.group(2))
-        acc_lvl = get_acc_lvl(msg.chat.id)
-        result = statdb.get_user_battle_stat(trg.group(1), acc_lvl)
+        statdb.new_game_user(trg.group(2))
+        statdb.update_user_land(trg.group(2), trg.group(3))
+        if trg.group(1):
+            statdb.new_alliance(trg.group(1))
+            statdb.new_user_alliance(trg.group(2), trg.group(1))
+        else:
+            statdb.delete_user_alliance(trg.group(2))
+        result = statdb.get_user_battle_stat(trg.group(2), acc_lvl)
         if result:
             return battle_stat_fmt(result)
         else:
