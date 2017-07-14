@@ -1,23 +1,29 @@
+#!/usr/local/bin/python
+
 from config import *
 from bsmsgparser import *
 import telebot
 import logging
 import statdb
-from out_fmts import global_stat_fmt, whois_info_fmt
-from tools import get_acc_lvl
+import time
+from out_fmts import *
+import requests
+
 
 logger = logging.getLogger('BSstatbot')
+
 
 class BotHandler(logging.Handler):
     def __init__(self, bot):
         logging.Handler.__init__(self)
         self.bot_obj = bot
+
     def emit(self, record):
         msg = self.format(record)
         bot.send_message(OWNER_ID, msg, parse_mode='Markdown')
 
 
-bot = telebot.TeleBot(TOKEN)
+bot = telebot.TeleBot(TOKEN, threaded=False)
 me = bot.get_me()
 
 # @bot.message_handler(commands=['leave'])
@@ -48,10 +54,9 @@ def who_user(msg):
     acc_lvl = get_acc_lvl(msg.chat.id)
     _, *args = msg.text.split()
     db_result = statdb.get_whois_info(' '.join(args), acc_lvl)
-    if db_result:
-        text = whois_info_fmt(db_result)
-        if text:
-            bot.send_message(msg.chat.id, text, parse_mode='Markdown')
+    text = whois_info_fmt(db_result)
+    if text:
+        bot.send_message(msg.chat.id, text, parse_mode='Markdown')
 
 
 @bot.message_handler(commands=['стат'])
@@ -64,24 +69,29 @@ def stat_user(msg):
         bot.send_message(msg.chat.id, text, parse_mode='Markdown')
 
 
-@bot.message_handler(func=lambda msg: msg.chat.id == SUPPORT_CHAT_ID, content_types=['new_chat_member'])
+@bot.message_handler(func=lambda msg: msg.chat.id == SUPPORT_CHAT_ID, content_types=['new_chat_members'])
 def on_user_joins(msg):
+    logger.debug('User joined support channel (id:%d)', msg.new_chat_member.id)
     new_user = msg.new_chat_member
     if statdb.new_tlgr_user(new_user.id, new_user.username, new_user.first_name, new_user.last_name):
         logger.info('New user added(join)')
         bot.send_message(msg.chat.id, GREETING_TEXT % new_user.first_name, disable_web_page_preview=True, parse_mode='Markdown')
 
 
-@bot.message_handler()
+@bot.message_handler(func=lambda msg: msg.forward_from and msg.forward_from.id == BS_BOT_ID)
 def on_bs_fwd(msg):
+    # logger.info('Got forward in %d', msg.chat.id)
+    acc_lvl = get_acc_lvl(msg.chat.id)
+    text = bs_fwd_parser(msg, acc_lvl)
+    if text:
+        bot.send_message(msg.from_user.id, text,  parse_mode='Markdown')
+
+
+@bot.message_handler(func=lambda msg: True)
+def on_any_msg(msg):
     new_user = msg.from_user
     if statdb.new_tlgr_user(new_user.id, new_user.username, new_user.first_name, new_user.last_name):
         logger.info('New user added(msg)')
-    if msg.forward_from and msg.forward_from.id == BS_BOT_ID:
-        # logger.info('Got forward in')  # %s', msg.chat)
-        text = bs_fwd_parser(msg)
-        if text:
-            bot.send_message(msg.chat.id, text,  parse_mode='Markdown')
 
 
 def is_user_in_chat(user_id, chat_id):
@@ -105,6 +115,8 @@ def get_acc_lvl(chat_id):
 
 
 def logger_init():
+    # logging.basicConfig(level=logging.DEBUG)
+
     # Console logging
     console_formatter = logging.Formatter(
         '%(asctime)s (%(filename)s:%(lineno)d %(funcName)s) %(levelname)s - %(name)s: "%(message)s"'
@@ -128,4 +140,19 @@ def logger_init():
 if __name__ == '__main__':
     logger_init()
     logger.info("BS Battle Stats bot running")
-    bot.polling(True)
+    while 1:
+        try:
+            logger.info("start polling")
+            bot.polling(none_stop=True)
+        except requests.exceptions.ReadTimeout as e:
+            logger.error('ReadTimeout')
+            print(e)
+            time.sleep(10)
+        except requests.exceptions.ConnectionError as e:
+            logger.error('ConnectionError')
+            print(e)
+            time.sleep(10)
+        except Exception as e:
+            logger.error('unexpected Exception')
+            print(e)
+            time.sleep(10)
