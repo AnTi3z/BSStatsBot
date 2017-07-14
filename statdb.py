@@ -261,3 +261,28 @@ def get_whois_info(search_arg, acc_lvl=0):
         logger.warning('Database error')
         return None
 
+
+def get_chat_acclvl(chat_id):
+    try:
+        with sqlite3.connect(SQLITE_DB_FILE) as conn:
+            logger.debug("SELECT AccessLevel FROM Chats WHERE ChatID = %s", chat_id)
+            curs = conn.execute('''SELECT AccessLevel FROM Chats WHERE ChatID = ?''', (chat_id,))
+            result = curs.fetchone()
+            if result: return result[0]
+            else: return 0
+    except sqlite3.Error:
+        logger.warning('Database error')
+        return None
+
+
+def get_chanlist():
+    try:
+        with sqlite3.connect(SQLITE_DB_FILE) as conn:
+            conn.row_factory = sqlite3.Row
+            logger.debug("SELECT ChatID, AccessLevel FROM Chats")
+            curs = conn.cursor()
+            curs.execute('SELECT ChatID, AccessLevel FROM Chats')
+            return curs.fetchall()
+    except sqlite3.Error:
+        logger.warning('Database error')
+        return None

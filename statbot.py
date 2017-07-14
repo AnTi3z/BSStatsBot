@@ -76,6 +76,26 @@ def on_bs_fwd(msg):
             bot.send_message(msg.chat.id, text,  parse_mode='Markdown')
 
 
+def is_user_in_chat(user_id, chat_id):
+    logger.debug('Check user channels: UserID: %d; ChatID: %d', user_id, chat_id)
+    member = bot.get_chat_member(chat_id, user_id)
+    if member:
+        logger.debug('User status: %s', member.status)
+        return member.status in ['creator','administrator','member']
+
+
+def get_acc_lvl(chat_id):
+    if chat_id < 0:
+        acc_lvl = statdb.get_chat_acclvl(chat_id)
+    else:
+        chanlist = statdb.get_chanlist()
+        acc_lvl = 0
+        for chan in chanlist:
+            if is_user_in_chat(chat_id, chan['ChatID']): acc_lvl = max(acc_lvl, chan['AccessLevel'])
+    logger.debug('ChatID: %d; AccessLevel: %d', chat_id, acc_lvl)
+    return acc_lvl
+
+
 def logger_init():
     # Console logging
     console_formatter = logging.Formatter(
