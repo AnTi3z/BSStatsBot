@@ -223,7 +223,7 @@ def get_user_global_stat(user, acc_lvl=0):
 
 
 def get_whois_info(search_arg, acc_lvl=0):
-    if acc_lvl <= 0: return None
+    #if acc_lvl <= 0: return None
     srch_mask = '%' + search_arg + '%'
     if search_arg[0] == '@': tlgr_user_mask = search_arg[1:] + '%'
     else: tlgr_user_mask = srch_mask
@@ -253,9 +253,9 @@ def get_whois_info(search_arg, acc_lvl=0):
             GameUser.UserName AS PlayerName, LandName, TlgrUser.UserName AS TlgUsername, FirstName, LastName
             FROM GameUser LEFT JOIN TlgrUser ON GameUser.TlgrID=TlgrUser.UserID
             WHERE GameUser.TlgrID IS NULL)
-            WHERE PlayerName LIKE ? OR LandName LIKE ?
+            WHERE (PlayerName LIKE ? OR LandName LIKE ?
             OR FirstName LIKE ? OR LastName LIKE ?
-            OR TlgUsername LIKE ?''', (srch_mask, srch_mask, srch_mask, srch_mask, tlgr_user_mask))
+            OR TlgUsername LIKE ?) AND NOT TlgrUserID IS 363124645''', (srch_mask, srch_mask, srch_mask, srch_mask, tlgr_user_mask))
             return curs.fetchall()
     except sqlite3.Error:
         logger.warning('Database error')
